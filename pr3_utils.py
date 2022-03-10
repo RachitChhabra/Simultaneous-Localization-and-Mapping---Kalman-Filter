@@ -36,7 +36,7 @@ def load_data(file_name):
     return t,features,linear_velocity,angular_velocity,K,b,imu_T_cam
 
 
-def visualize_trajectory_2d(pose,path_name="Trajectory",show_ori=False):
+def visualize_trajectory_2d(pose,x,y,path_name="Trajectory",show_ori=False):
     '''
     function to visualize the trajectory in 2D
     Input:
@@ -69,6 +69,7 @@ def visualize_trajectory_2d(pose,path_name="Trajectory",show_ori=False):
     ax.axis('equal')
     ax.grid(False)
     ax.legend()
+    plt.scatter(x,y, s = 2)
     plt.show(block=True)
 
     return fig, ax
@@ -83,7 +84,7 @@ def hatmap(vector):
 
     number_of_vectors = vector.shape[0] 
     hatmap = np.zeros((number_of_vectors,3,3))
-
+  
     hatmap[:,2,1] = vector[:,0]                 ##  First element
     hatmap[:,0,2] = vector[:,1]                 ## Second element
     hatmap[:,1,0] = vector[:,2]                 ##  Third element

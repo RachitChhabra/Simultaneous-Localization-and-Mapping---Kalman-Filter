@@ -2,7 +2,8 @@ import numpy as np
 from scipy.linalg import expm
 from pr3_utils import *
 from prediction_EKF import trajectory
-
+from update_EKF import update
+from tqdm import tqdm
 
 
 if __name__ == '__main__':
@@ -11,28 +12,32 @@ if __name__ == '__main__':
 	filename = "./data/03.npz"
 	t,features,linear_velocity,angular_velocity,K,b,imu_T_cam = load_data(filename)    ## b = 0.6, features = 5105
 
+
 	timesteps  = t[:,1:-1] - t[:,0:-2]
 	
 	covariance = np.zeros((2*features.shape[1] + 6, 2*features.shape[1] + 6))
-	mu = np.zeros((3*features.shape[1],3*features.shape[1]))
+	mu_pred = np.eye(4)
 
-
-	# fsu = K[0,0]			## 552.554261
-	# ul = features[0,0,0]
-	# ur = features[2,0,0]
-	# z = (fsu*b)/(ul-ur)
 
 	T = np.zeros((4,4,timesteps.shape[1]+1))		## t shape + 1 as first T is Identity
 	T[:,:,0] = np.eye(4)
 
-	av_hatmap = hatmap(np.transpose(angular_velocity))
+	del_mu = np.zeros((6,1))
 
-	for i in range(0,timesteps.shape[1]):
-		T[:,:,i+1] = trajectory(T[:,:,i],av_hatmap[i],linear_velocity[:,i],timesteps[0,i],i)
-		
+	av_hatmap = hatmap(np.transpose(angular_velocity))
+	lv_hatmap = hatmap(np.transpose(linear_velocity))
+
+	x = np.zeros((5105,timesteps.shape[1]))
+	y = np.zeros((5105,timesteps.shape[1]))
+	for i in tqdm(range(0,timesteps.shape[1])):
+		## Prediction EKF
+		T[:,:,i+1], mu_pred, covariance[0:6,0:6], del_mu = trajectory(T[:,:,i],mu_pred, del_mu, covariance, av_hatmap[i],lv_hatmap[i],linear_velocity[:,i],timesteps[0,i])
+		## Update EKF
+		x[:,i],y[:,i] = update((T[:,:,i+1]),features,K,b,imu_T_cam,i)
+	
 
 	# You can use the function below to visualize the robot pose over time
-	visualize_trajectory_2d(T, show_ori = True)
+	visualize_trajectory_2d(T,x,y, show_ori = True)
 
 
 
