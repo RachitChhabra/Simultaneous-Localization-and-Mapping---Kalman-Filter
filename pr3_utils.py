@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from transforms3d.euler import mat2euler
-
+ 
 def load_data(file_name):
     '''
     function to read visual features, IMU measurements and calibration parameters

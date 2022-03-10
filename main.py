@@ -5,7 +5,6 @@ from prediction_EKF import trajectory
 
 
 
-
 if __name__ == '__main__':
 
 	# Load the measurements
@@ -24,10 +23,9 @@ if __name__ == '__main__':
 	# z = (fsu*b)/(ul-ur)
 
 	T = np.zeros((4,4,timesteps.shape[1]+1))		## t shape + 1 as first T is Identity
-	T[:,:,0] = np.matrix([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0],[0, 0, 0, 1]])
+	T[:,:,0] = np.eye(4)
 
 	av_hatmap = hatmap(np.transpose(angular_velocity))
-
 
 	for i in range(0,timesteps.shape[1]):
 		T[:,:,i+1] = trajectory(T[:,:,i],av_hatmap[i],linear_velocity[:,i],timesteps[0,i],i)
