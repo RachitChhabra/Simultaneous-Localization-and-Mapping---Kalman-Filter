@@ -6,12 +6,14 @@ from update_EKF import update
 from tqdm import tqdm
 
 
+
 if __name__ == '__main__':
 
 	# Load the measurements
 	filename = "./data/03.npz"
-	t,features,linear_velocity,angular_velocity,K,b,imu_T_cam = load_data(filename)    ## b = 0.6, features = 5105
+	t,features_full,linear_velocity,angular_velocity,K,b,imu_T_cam = load_data(filename)    ## b = 0.6, features = 5105
 
+	features = features_full[:,0::10,:]
 
 	timesteps  = t[:,1:-1] - t[:,0:-2]
 	
@@ -27,17 +29,19 @@ if __name__ == '__main__':
 	av_hatmap = hatmap(np.transpose(angular_velocity))
 	lv_hatmap = hatmap(np.transpose(linear_velocity))
 
-	x = np.zeros((5105,timesteps.shape[1]))
-	y = np.zeros((5105,timesteps.shape[1]))
+
 	for i in tqdm(range(0,timesteps.shape[1])):
 		## Prediction EKF
 		T[:,:,i+1], mu_pred, covariance[0:6,0:6], del_mu = trajectory(T[:,:,i],mu_pred, del_mu, covariance, av_hatmap[i],lv_hatmap[i],linear_velocity[:,i],timesteps[0,i])
+		if(i==timesteps.shape[1]-1):
+			print(T[:,:,i+1])
+		
 		## Update EKF
-		x[:,i],y[:,i] = update((T[:,:,i+1]),features,K,b,imu_T_cam,i)
+		x,y = update((T[:,:,i+1]),features,K,b,imu_T_cam,i)
 	
 
 	# You can use the function below to visualize the robot pose over time
-	visualize_trajectory_2d(T,x,y, show_ori = True)
+	# visualize_trajectory_2d(T,x,y)#, show_ori = True)
 
 
 
