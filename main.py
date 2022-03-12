@@ -6,6 +6,8 @@ from update_EKF import update, skip
 from tqdm import tqdm
 
 
+program = 0
+
 
 if __name__ == '__main__':
 
@@ -36,13 +38,13 @@ if __name__ == '__main__':
 		T[:,:,i+1], mu_pred, covariance[0:6,0:6], del_mu = trajectory(T[:,:,i],mu_pred, del_mu, covariance, av_hatmap[i],lv_hatmap[i],linear_velocity[:,i],timesteps[0,i])
 		
 		## Update EKF
-		x,y = update((T[:,:,i+1]),features,covariance,K,b,imu_T_cam,i)
+		x,y = update((T[:,:,i+1]),features,mu_pred,covariance,K,b,imu_T_cam,i)
 	
 
 	# You can use the function below to visualize the robot pose over time
-	visualize_trajectory_2d(T,x,y, show_ori = True)
+	# visualize_trajectory_2d(T,x,y, show_ori = True)
 
-
+	
 
 
 

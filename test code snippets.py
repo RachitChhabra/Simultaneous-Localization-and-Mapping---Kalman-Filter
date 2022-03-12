@@ -8,11 +8,8 @@ filename = "./data/03.npz"
 
 
 
-s = np.zeros((3,1))
-a = np.where(s[:,0] == 0)
+A = np.zeros((4000,100))
+B = np.zeros((4000,6))
 
-t = np.zeros((2,1))
-b = np.where(t[:,0] == 0)
-
-c = np.intersect1d(a,b)
-print(c)
+C = np.hstack((A,B))
+print(C.shape)

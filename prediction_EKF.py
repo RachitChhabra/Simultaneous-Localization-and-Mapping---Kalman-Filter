@@ -46,9 +46,9 @@ def trajectory(T_old,mu_pred_old,del_old,covariance_old,av_h,lv_h,lv,tau):
 def oneDhatmap(vector):
     '''
     Input:
-        t x 3 vector
+        1 x 3 vector
     Output:
-        converts it to a t x 3 x 3 hat map and outputs 3x3xt
+        converts it to a 3 x 3 hat map and outputs 3x3
     '''
     hatmap = np.zeros((3,3))
   
@@ -60,3 +60,17 @@ def oneDhatmap(vector):
     hatmap[2,0] = -hatmap[0,2]
     hatmap[0,1] = -hatmap[1,0]
     return hatmap
+
+def four_four_hatmap(vector):
+	'''
+	Input:
+		6 x 1 vector
+	Output:
+		converts it to a 4 x 4 hat map and outputs 4 x 4
+	'''
+	w_hat = oneDhatmap(np.transpose(vector[0:3]))
+
+	four_four = np.hstack((w_hat,vector[3:6]))
+	four_four = np.vstack((four_four,np.zeros((1,4))))
+	return four_four
+

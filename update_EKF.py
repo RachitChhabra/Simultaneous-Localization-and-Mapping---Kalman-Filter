@@ -1,5 +1,6 @@
 import numpy as np
-from prediction_EKF import oneDhatmap
+from prediction_EKF import oneDhatmap,four_four_hatmap
+from scipy.linalg import expm
 
 
 
@@ -26,7 +27,7 @@ m_ticker =   np.zeros((1,m))
 
 Pt = np.vstack((np.eye(3),np.zeros((1,3))))
 
-def update(T,features,covariance,K,b,imu_T_cam,i):
+def update(T,features,mu_pred,covariance,K,b,imu_T_cam,i):
     fsu = K[0,0]			## 552.554261
     fsv = K[1,1]
     cu = K[0,2]
@@ -79,7 +80,7 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
 
     z_tilda = np.zeros((4*Nt,1))
     l = 0
-    H = np.zeros((4*Nt,3*m))
+    H_stereo = np.zeros((4*Nt,3*m))
     H_imu = np.zeros((4*Nt,6))
 
     for j in Nt_index:
@@ -87,25 +88,38 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
         
         
         dpdp = dpibydq(np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)])))
-        H[4*l:4*(l+1),3*j:3*(j+1)] = np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),Pt))))
+        H_stereo[4*l:4*(l+1),3*j:3*(j+1)] = np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),Pt))))
         
-        # H_imu[4*l:4*(l+1),:] = - np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),specialplus(np.transpose(np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)]))))))
+        # if(program == 3):
+        H_imu[4*l:4*(l+1),:] = - np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),specialplus(np.transpose(np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)]))))))
         
-
-
-
         l+=1
-    
- 
+
+
+    # if (program == 2):
     ## Calculating Kalman Gain
-    sigma_Ht = np.matmul(covariance[6:3*m+6,6:3*m+6],np.transpose(H))
-    I_star_V = np.eye(4*Nt)
 
-    K = np.matmul(sigma_Ht,np.linalg.inv(np.matmul(H,sigma_Ht)+I_star_V))
-
-    mean_3m_1 = mean_3m_1 + np.matmul(K,features[:,Nt_index,i].reshape(z_tilda.shape) - z_tilda)
-    covariance[6:3*m+6,6:3*m+6] = np.matmul((np.eye(3*m) - np.matmul(K,H)),covariance[6:3*m+6,6:3*m+6]) 
+    # sigma_Ht_stereo = np.matmul(covariance[6:3*m+6,6:3*m+6],np.transpose(H_stereo))
+    # I_star_V = np.eye(4*Nt)
+    # K_stereo = np.matmul(sigma_Ht_stereo,np.linalg.inv(np.matmul(H_stereo,sigma_Ht_stereo)+I_star_V))
+    # mean_3m_1 = mean_3m_1 + np.matmul(K_stereo,features[:,Nt_index,i].reshape(z_tilda.shape) - z_tilda)
+    # covariance[6:3*m+6,6:3*m+6] = np.matmul((np.eye(3*m) - np.matmul(K_stereo,H_stereo)),covariance[6:3*m+6,6:3*m+6]) 
    
+
+    # if (program == 3):
+    H_slam = np.hstack((H_stereo,H_imu))        # (4 Nt , 3m+6)
+    sigma_Ht_slam = np.matmul(covariance,np.transpose(H_slam))
+    I_star_V_slam = np.eye(4*Nt)
+    K_slam = np.matmul(sigma_Ht_slam,np.linalg.inv(np.matmul(H_slam,sigma_Ht_slam)+I_star_V_slam))   # (3m+6 , 4 Nt)
+
+    eye_minus_KH = np.eye(3*m+6) - np.matmul(K_slam,H_slam)
+    covariance = np.matmul(eye_minus_KH,np.matmul(covariance,np.transpose(eye_minus_KH))) + np.matmul(K_slam,np.matmul(I_star_V_slam,np.transpose(K_slam)))
+
+
+    innovation = features[:,Nt_index,i].reshape(z_tilda.shape) - z_tilda
+    mean_3m_1 = mean_3m_1 + np.matmul(K_slam[0:3*m,:],innovation)
+    mu_pred   = mu_pred + expm(four_four_hatmap(np.matmul(K_slam[3*m:3*m+6,:],innovation)))
+
     world_frame_mean[0:3,:] = np.reshape(mean_3m_1,(3,m),order = 'F')
     
 
@@ -121,49 +135,10 @@ def specialplus(s):
 def dpibydq(q):
     dq = np.zeros((4,4))
     dq[0,0] = 1/q[2]
-    dq[0,2] = -q[0] / (q[2] * q[2])
+    dq[0,2] = -q[0]/(q[2]*q[2])
     dq[1,1] = 1/q[2]
-    dq[1,2] = -q[1] / (q[2] * q[2])
-    dq[3,2] = -q[3] / (q[2] * q[2])
+    dq[1,2] = -q[1]/(q[2]*q[2])
+    dq[3,2] = -q[3]/(q[2]*q[2])
     dq[3,3] = 1/q[2]
     return dq
-
-
-
-
-
-if __name__ == '__main__':
-
-	# Load the measurements
-	filename = "./data/03.npz"
-	t,features_full,linear_velocity,angular_velocity,K,b,imu_T_cam = load_data(filename)    ## b = 0.6, features = 5105
-
-	features = features_full[:,0::skip,:]
-
-	timesteps  = t[:,1:-1] - t[:,0:-2]
-	
-	covariance = np.zeros((3*features.shape[1] + 6, 3*features.shape[1] + 6))
-	mu_pred = np.eye(4)
-
-
-	T = np.zeros((4,4,timesteps.shape[1]+1))		## t shape + 1 as first T is Identity
-	T[:,:,0] = np.eye(4)
-
-	del_mu = np.zeros((6,1))
-
-	av_hatmap = hatmap(np.transpose(angular_velocity))
-	lv_hatmap = hatmap(np.transpose(linear_velocity))
-
-
-	# for i in tqdm(range(0,1)):
-	for i in tqdm(range(0,timesteps.shape[1])):
-		## Prediction EKF
-		T[:,:,i+1], mu_pred, covariance[0:6,0:6], del_mu = trajectory(T[:,:,i],mu_pred, del_mu, covariance, av_hatmap[i],lv_hatmap[i],linear_velocity[:,i],timesteps[0,i])
-		
-		## Update EKF
-		x,y = update((T[:,:,i+1]),features,covariance,K,b,imu_T_cam,i)
-	
-
-	# You can use the function below to visualize the robot pose over time
-	visualize_trajectory_2d(T,x,y)#, show_ori = True)
 
