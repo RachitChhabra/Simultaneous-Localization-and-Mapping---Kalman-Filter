@@ -9,5 +9,10 @@ filename = "./data/03.npz"
 
 
 s = np.zeros((3,1))
+a = np.where(s[:,0] == 0)
 
-oneDhatmap(np.transpose(s))
+t = np.zeros((2,1))
+b = np.where(t[:,0] == 0)
+
+c = np.intersect1d(a,b)
+print(c)

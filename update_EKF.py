@@ -9,9 +9,9 @@ from tqdm import tqdm
 
 
 
-V = np.diag(np.full(4,(100,100,100,0)))  ## V = (4,4)
+V = np.diag(np.full(4,(10,10,10,0)))  ## V = (4,4)
 
-skip = 20
+skip = 10
 file = '03'
 
 if(file == '03'):
@@ -56,12 +56,19 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
     # world_frame = np.matmul(np.matmul(T,imu_T_cam),(xyz1))
 
     nnan_index = np.where(ul!= -1)
-    m_sum[:,nnan_index] += world_frame[:,nnan_index]
+    # m_sum[:,nnan_index] += world_frame[:,nnan_index]
 
     # if(i == 0):
-    world_frame_mean[:,nnan_index] = m_sum[:,nnan_index]/(m_ticker[:,nnan_index] + 1)
     
-    m_ticker[:,nnan_index] += 1
+    # world_frame_mean[:,nnan_index] = m_sum[:,nnan_index]/(m_ticker[:,nnan_index] + 1)
+    # m_ticker[:,nnan_index] += 1
+
+    not_seen_yet = np.where(m_ticker[0,:] == 0)
+    first_time_seen = np.intersect1d(nnan_index,not_seen_yet)
+    world_frame_mean[:,first_time_seen] = world_frame[:,first_time_seen]
+    m_ticker[:,first_time_seen] += 1
+
+
     Nt_index = np.array(nnan_index).flatten()
     Nt = Nt_index.shape[0]
 
@@ -82,7 +89,7 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
         dpdp = dpibydq(np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)])))
         H[4*l:4*(l+1),3*j:3*(j+1)] = np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),Pt))))
         
-        H_imu[4*l:4*(l+1),:] = - np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),specialplus(np.transpose(np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)]))))))
+        # H_imu[4*l:4*(l+1),:] = - np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),specialplus(np.transpose(np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)]))))))
         
 
 
