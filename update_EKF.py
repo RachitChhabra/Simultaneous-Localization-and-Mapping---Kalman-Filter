@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 V = np.diag(np.full(4,(100,100,100,0)))  ## V = (4,4)
 
-skip = 25
+skip = 20
 file = '03'
 
 if(file == '03'):
@@ -49,7 +49,6 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
     z = (fsu*b)/(ul-ur)
     x = (1/fsu)*(ul - cu)*z
     y =  (1/fsv)*(vl - cv)*z
-    
     xyz1 = np.vstack((x,y,z,np.ones(x.shape)))
 
     ## Calculating mean in world frame
@@ -58,11 +57,14 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
 
     nnan_index = np.where(ul!= -1)
     m_sum[:,nnan_index] += world_frame[:,nnan_index]
-    
+
+    # if(i == 0):
     world_frame_mean[:,nnan_index] = m_sum[:,nnan_index]/(m_ticker[:,nnan_index] + 1)
+    
     m_ticker[:,nnan_index] += 1
     Nt_index = np.array(nnan_index).flatten()
     Nt = Nt_index.shape[0]
+
 
     ## Reshaping from 4xm to to 3mx1
     mean_3m_1 = np.transpose(world_frame_mean[0:3,:]).reshape((3*m,1))        ## mean_3m_1 -> (3m,1)
@@ -71,13 +73,22 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
     z_tilda = np.zeros((4*Nt,1))
     l = 0
     H = np.zeros((4*Nt,3*m))
-    
+    H_imu = np.zeros((4*Nt,6))
+
     for j in Nt_index:
         z_tilda[4*l:4*(l+1)] = np.matmul(Ks,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(imu_T_cam),mean_4m_1[4*j:4*(j+1)])))/mean_4m_1[4*j+2]
         
-        H[4*l:4*(l+1),3*j:3*(j+1)] = np.matmul(Ks,np.matmul(dpibydq(np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(imu_T_cam),mean_4m_1[4*j:4*(j+1)]))),np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(imu_T_cam),Pt))))
+        
+        dpdp = dpibydq(np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)])))
+        H[4*l:4*(l+1),3*j:3*(j+1)] = np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),Pt))))
+        
+        H_imu[4*l:4*(l+1),:] = - np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),specialplus(np.transpose(np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)]))))))
+        
+
+
+
         l+=1
-  
+    
  
     ## Calculating Kalman Gain
     sigma_Ht = np.matmul(covariance[6:3*m+6,6:3*m+6],np.transpose(H))
@@ -89,17 +100,16 @@ def update(T,features,covariance,K,b,imu_T_cam,i):
     covariance[6:3*m+6,6:3*m+6] = np.matmul((np.eye(3*m) - np.matmul(K,H)),covariance[6:3*m+6,6:3*m+6]) 
    
     world_frame_mean[0:3,:] = np.reshape(mean_3m_1,(3,m),order = 'F')
-
+    
 
     return world_frame_mean[0],world_frame_mean[1]
-
 
 
 
 def specialplus(s):
     sp = np.hstack((np.eye(3), -oneDhatmap(s)))
     sp = np.vstack((sp,np.zeros((1,6))))
-    print(sp)
+    return sp
 
 def dpibydq(q):
     dq = np.zeros((4,4))
