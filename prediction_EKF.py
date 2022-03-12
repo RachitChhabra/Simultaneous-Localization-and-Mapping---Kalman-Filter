@@ -20,8 +20,8 @@ def trajectory(T_old,mu_pred_old,del_old,covariance_old,av_h,lv_h,lv,tau):
 	curly_hatmap = np.vstack((curly_hatmap, (np.hstack((np.zeros((3,3)), av_h)))))	## curly hatmap -> 6 x 6
 	exp_curly = expm(-tau*curly_hatmap)
 
-
-	del_new = np.matmul(exp_curly,del_old) + w 
+	del_new = np.matmul(exp_curly,del_old) + w
+	# del_new = np.matmul(exp_curly,del_old)
 
 	mu_pred_new = np.matmul(mu_pred_old,exp_xi)
 	new_covariance = np.matmul(exp_curly,np.matmul(covariance_old[0:6,0:6],np.transpose(exp_curly))) + W
@@ -41,8 +41,6 @@ def trajectory(T_old,mu_pred_old,del_old,covariance_old,av_h,lv_h,lv,tau):
 
 
 	return T_new, mu_pred_new, new_covariance, del_new
-
-
 
 
 def oneDhatmap(vector):

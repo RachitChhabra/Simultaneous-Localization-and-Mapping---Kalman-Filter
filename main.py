@@ -30,6 +30,7 @@ if __name__ == '__main__':
 	lv_hatmap = hatmap(np.transpose(linear_velocity))
 
 
+	# for i in tqdm(range(0,1)):
 	for i in tqdm(range(0,timesteps.shape[1])):
 		## Prediction EKF
 		T[:,:,i+1], mu_pred, covariance[0:6,0:6], del_mu = trajectory(T[:,:,i],mu_pred, del_mu, covariance, av_hatmap[i],lv_hatmap[i],linear_velocity[:,i],timesteps[0,i])
