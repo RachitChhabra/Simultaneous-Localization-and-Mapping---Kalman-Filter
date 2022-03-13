@@ -36,7 +36,7 @@ def load_data(file_name):
     return t,features,linear_velocity,angular_velocity,K,b,imu_T_cam
 
 
-def visualize_trajectory_2d(pose,x,y,path_name="Trajectory",show_ori=False):
+def visualize_trajectory_2d(pose,x=0,y=0,path_name="Trajectory",show_ori=False):
     '''
     function to visualize the trajectory in 2D
     Input:

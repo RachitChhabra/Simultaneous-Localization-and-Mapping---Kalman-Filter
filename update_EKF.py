@@ -2,32 +2,40 @@ import numpy as np
 from prediction_EKF import oneDhatmap,four_four_hatmap
 from scipy.linalg import expm
 
+V = np.diag(np.full(4,(0.01,0.01,0.01,0.01)))  ## V = (4,4)
 
-
-from pr3_utils import *
-from prediction_EKF import trajectory
-from tqdm import tqdm
-
-
-
-V = np.diag(np.full(4,(10,10,10,0)))  ## V = (4,4)
-
-skip = 10
+skip = 25
 file = '03'
 
 if(file == '03'):
     m = int(5105/skip)+1
 if(file == '10'):
     m = int(13289/skip)+1
-
 m_sum = np.zeros((4,m))
 world_frame_mean = np.zeros((4,m)) 
-world_frame_mean[:,:] = np.nan
+world_frame_mean[:,:] = 0
 m_ticker =   np.zeros((1,m))
 
 Pt = np.vstack((np.eye(3),np.zeros((1,3))))
 
-def update(T,features,mu_pred,covariance,K,b,imu_T_cam,i):
+
+
+def update(T,features,mu_imu,covariance,K,b,imu_T_cam,i):
+    # if(i==14):
+    
+
+    ## Noise to features
+    v = np.reshape(np.random.normal(0,np.diag(V)),(4,1))							## v = (4,1)
+    nnan_index = np.where(features[1,:,i]!= -1)
+
+    features[:,nnan_index[0],i] -= v
+
+    Nt_index = np.array(nnan_index).flatten()
+    Nt = Nt_index.shape[0]
+
+
+
+    # print(features[:,nnan_index,i])
     fsu = K[0,0]			## 552.554261
     fsv = K[1,1]
     cu = K[0,2]
@@ -39,12 +47,15 @@ def update(T,features,mu_pred,covariance,K,b,imu_T_cam,i):
 
     ## Construct Ks
     Ks = np.zeros((4,4))
-    Ks[0:3,0:3] = K
-    Ks[3,1:3] = K[1,1:3]
-    Ks[2,3] = -K[0,0]*b
-
-    ## Noise to xyz1
-    v = np.reshape(np.random.normal(0,np.diag(V)),(4,1))							## v = (4,1)
+    Ks[0,0] = K[0,0]
+    Ks[0,2] = K[0,2]
+    Ks[1,1] = K[1,1]
+    Ks[1,2] = K[1,2]
+    Ks[2,0] = K[0,0]
+    Ks[2,2] = K[0,2]
+    Ks[2,3] = -1 * b * K[0,0]
+    Ks[3,1] = K[1,1]
+    Ks[3,2] = K[1,2]
 
     ## Optical Frame coordinates
     z = (fsu*b)/(ul-ur)
@@ -53,14 +64,12 @@ def update(T,features,mu_pred,covariance,K,b,imu_T_cam,i):
     xyz1 = np.vstack((x,y,z,np.ones(x.shape)))
 
     ## Calculating mean in world frame
-    world_frame = np.matmul(np.matmul(T,imu_T_cam),(xyz1-v))
-    # world_frame = np.matmul(np.matmul(T,imu_T_cam),(xyz1))
+    world_frame = np.matmul(np.matmul(T,imu_T_cam),(xyz1))
+    
 
-    nnan_index = np.where(ul!= -1)
     # m_sum[:,nnan_index] += world_frame[:,nnan_index]
 
     # if(i == 0):
-    
     # world_frame_mean[:,nnan_index] = m_sum[:,nnan_index]/(m_ticker[:,nnan_index] + 1)
     # m_ticker[:,nnan_index] += 1
 
@@ -70,31 +79,33 @@ def update(T,features,mu_pred,covariance,K,b,imu_T_cam,i):
     m_ticker[:,first_time_seen] += 1
 
 
-    Nt_index = np.array(nnan_index).flatten()
-    Nt = Nt_index.shape[0]
-
 
     ## Reshaping from 4xm to to 3mx1
     mean_3m_1 = np.transpose(world_frame_mean[0:3,:]).reshape((3*m,1))        ## mean_3m_1 -> (3m,1)
     mean_4m_1 = np.transpose(world_frame_mean[0:4,:]).reshape((4*m,1))        ## mean_4m_1 -> (4m,1)
-
+    # print(mean_3m_1[0:24])
     z_tilda = np.zeros((4*Nt,1))
     l = 0
     H_stereo = np.zeros((4*Nt,3*m))
     H_imu = np.zeros((4*Nt,6))
 
+
     for j in Nt_index:
-        z_tilda[4*l:4*(l+1)] = np.matmul(Ks,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(imu_T_cam),mean_4m_1[4*j:4*(j+1)])))/mean_4m_1[4*j+2]
-        
-        
-        dpdp = dpibydq(np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)])))
-        H_stereo[4*l:4*(l+1),3*j:3*(j+1)] = np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(T),Pt))))
+        q = np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(mu_imu),mean_4m_1[4*j:4*(j+1)]))
+        z_tilda[4*l:4*(l+1)] = np.matmul(Ks,q/q[2])
+
+        dpdp = dpibydq(np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(mu_imu),mean_4m_1[4*j:4*(j+1)])))
+        H_stereo[4*l:4*(l+1),3*j:3*(j+1)] = np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),np.matmul(np.linalg.inv(mu_imu),Pt))))
         
         # if(program == 3):
-        H_imu[4*l:4*(l+1),:] = - np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),specialplus(np.transpose(np.matmul(np.linalg.inv(T),mean_4m_1[4*j:4*(j+1)]))))))
+        H_imu[4*l:4*(l+1),:] = - np.matmul(Ks,np.matmul(dpdp,np.matmul(np.linalg.inv(imu_T_cam),specialplus(np.transpose(np.matmul(np.linalg.inv(mu_imu),mean_4m_1[4*j:4*(j+1)]))))))
         
+        if(covariance[3*j,3*j] == 0):
+            covariance[3*j:3*(j+1),3*j:3*(j+1)] = np.eye(3)*0.001
         l+=1
 
+    
+    # print(z_tilda,'z_t')
 
     # if (program == 2):
     ## Calculating Kalman Gain
@@ -108,22 +119,36 @@ def update(T,features,mu_pred,covariance,K,b,imu_T_cam,i):
 
     # if (program == 3):
     H_slam = np.hstack((H_stereo,H_imu))        # (4 Nt , 3m+6)
+   
     sigma_Ht_slam = np.matmul(covariance,np.transpose(H_slam))
-    I_star_V_slam = np.eye(4*Nt)
+    I_star_V_slam = np.eye(4*Nt)*V[0,0]
     K_slam = np.matmul(sigma_Ht_slam,np.linalg.inv(np.matmul(H_slam,sigma_Ht_slam)+I_star_V_slam))   # (3m+6 , 4 Nt)
+    # K_slam = np.matmul(sigma_Ht_slam,np.linalg.pinv(np.matmul(H_slam,sigma_Ht_slam)+I_star_V_slam),1e-5)   # (3m+6 , 4 Nt)
+
 
     eye_minus_KH = np.eye(3*m+6) - np.matmul(K_slam,H_slam)
+    
     covariance = np.matmul(eye_minus_KH,np.matmul(covariance,np.transpose(eye_minus_KH))) + np.matmul(K_slam,np.matmul(I_star_V_slam,np.transpose(K_slam)))
+    # covariance = np.matmul(eye_minus_KH,covariance)
+
+    # innovation = np.reshape(features[:,nnan_index,i],z_tilda.shape) - z_tilda
+    innovation = np.reshape(np.squeeze(features[:,nnan_index,i]),z_tilda.shape,order = 'F') - z_tilda
+
+    # print(innovation)
+    # print(np.reshape(np.squeeze(features[:,nnan_index,i]),z_tilda.shape,order = 'F'),'z')
+    # print(z_tilda,'z_t')
 
 
-    innovation = features[:,Nt_index,i].reshape(z_tilda.shape) - z_tilda
     mean_3m_1 = mean_3m_1 + np.matmul(K_slam[0:3*m,:],innovation)
-    mu_pred   = mu_pred + expm(four_four_hatmap(np.matmul(K_slam[3*m:3*m+6,:],innovation)))
+    print(four_four_hatmap(np.matmul(K_slam[-6:,:],innovation)),four_four_hatmap(np.matmul(K_slam[-6:,:],innovation)).shape)
+    mu_imu   = np.matmul(mu_imu,expm(four_four_hatmap(np.matmul(K_slam[-6:,:],innovation))))
+
 
     world_frame_mean[0:3,:] = np.reshape(mean_3m_1,(3,m),order = 'F')
-    
 
-    return world_frame_mean[0],world_frame_mean[1]
+
+
+    return world_frame_mean[0],world_frame_mean[1],mu_imu,covariance
 
 
 

@@ -2,12 +2,12 @@ import numpy as np
 from scipy.linalg import expm
 from pr3_utils import hatmap
 
-W = np.diag(np.full(6,(0.3, 0.3, 0.3, 0.05, 0.05, 0.05 )))  ## W = (6,6)
+W = np.diag(np.full(6,(0.001,0.001,0.001,0.001,0.001,0.001)))  ## W = (6,6)
 
-def trajectory(T_old,mu_pred_old,del_old,covariance_old,av_h,lv_h,lv,tau):
+def trajectory(T_old,mu_pred_old,del_old,sigma,av_h,lv_h,lv,f,tau):
 	## We only need top left 6x6 covariance matrix
 
-	
+
 	w = np.reshape(np.random.normal(0,np.diag(W)),(6,1))							## w = (6,)
 
 
@@ -24,7 +24,7 @@ def trajectory(T_old,mu_pred_old,del_old,covariance_old,av_h,lv_h,lv,tau):
 	# del_new = np.matmul(exp_curly,del_old)
 
 	mu_pred_new = np.matmul(mu_pred_old,exp_xi)
-	new_covariance = np.matmul(exp_curly,np.matmul(covariance_old[0:6,0:6],np.transpose(exp_curly))) + W
+	sigma[-6:,-6:] = np.matmul(exp_curly,np.matmul(sigma[-6:,-6:],np.transpose(exp_curly))) + W
 	
 	del_new_1_3_h = oneDhatmap(np.transpose(del_new[0:3]))
 
@@ -37,11 +37,12 @@ def trajectory(T_old,mu_pred_old,del_old,covariance_old,av_h,lv_h,lv,tau):
 	xi_del = np.vstack((xi_del,np.zeros((1,4))))
 	exp_xi_del = expm(xi_del)
 
-	T_new = np.matmul(mu_pred_new,exp_xi_del)
+	T_new = mu_pred_new
+	#T_new = np.matmul(mu_pred_new,exp_xi_del)
 
 
-	return T_new, mu_pred_new, new_covariance, del_new
-
+	return T_new, mu_pred_new, sigma, del_new
+	# return T_new, mu_pred_new, del_new
 
 def oneDhatmap(vector):
     '''
@@ -61,16 +62,16 @@ def oneDhatmap(vector):
     hatmap[0,1] = -hatmap[1,0]
     return hatmap
 
-def four_four_hatmap(vector):
+def four_four_hatmap(x):
 	'''
 	Input:
 		6 x 1 vector
 	Output:
 		converts it to a 4 x 4 hat map and outputs 4 x 4
 	'''
-	w_hat = oneDhatmap(np.transpose(vector[0:3]))
+	y = np.vstack([np.hstack([oneDhatmap(np.transpose(x[3:])), x[0:3]]) ,np.zeros((1,4))])
+	# w_hat = oneDhatmap(np.transpose(vector[0:3]))
 
-	four_four = np.hstack((w_hat,vector[3:6]))
-	four_four = np.vstack((four_four,np.zeros((1,4))))
-	return four_four
-
+	# four_four = np.hstack((w_hat,vector[3:6]))
+	# four_four = np.vstack((four_four,np.zeros((1,4))))
+	return y
