@@ -49,6 +49,8 @@ def visualize_trajectory_2d(pose,x=0,y=0,path_name="Trajectory",show_ori=False):
     ax.plot(pose[0,3,:],pose[1,3,:],'r-',label=path_name)
     ax.scatter(pose[0,3,0],pose[1,3,0],marker='s',label="start")
     ax.scatter(pose[0,3,-1],pose[1,3,-1],marker='o',label="end")
+
+    
   
     if show_ori:
         select_ori_index = list(range(0,n_pose,max(int(n_pose/50), 1)))

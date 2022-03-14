@@ -2,7 +2,7 @@ import numpy as np
 from scipy.linalg import expm
 from pr3_utils import hatmap
 
-W = np.diag(np.full(6,(0.001,0.001,0.001,0.001,0.001,0.001)))  ## W = (6,6)
+W = np.diag(np.full(6,(0.2,0.2,0.2,0.001,0.001,0.001)))  ## W = (6,6)
 
 def trajectory(T_old,mu_pred_old,del_old,sigma,av_h,lv_h,lv,f,tau):
 	## We only need top left 6x6 covariance matrix
@@ -38,7 +38,7 @@ def trajectory(T_old,mu_pred_old,del_old,sigma,av_h,lv_h,lv,f,tau):
 	exp_xi_del = expm(xi_del)
 
 	T_new = mu_pred_new
-	#T_new = np.matmul(mu_pred_new,exp_xi_del)
+	# T_new = np.matmul(mu_pred_new,exp_xi_del)
 
 
 	return T_new, mu_pred_new, sigma, del_new

@@ -4,14 +4,16 @@ from scipy.linalg import expm
 
 V = np.diag(np.full(4,(0.01,0.01,0.01,0.01)))  ## V = (4,4)
 
-skip = 25
+skip = 15
 file = '03'
 
 if(file == '03'):
     m = int(5105/skip)+1
 if(file == '10'):
     m = int(13289/skip)+1
-m_sum = np.zeros((4,m))
+
+
+
 world_frame_mean = np.zeros((4,m)) 
 world_frame_mean[:,:] = 0
 m_ticker =   np.zeros((1,m))
@@ -65,13 +67,7 @@ def update(T,features,mu_imu,covariance,K,b,imu_T_cam,i):
 
     ## Calculating mean in world frame
     world_frame = np.matmul(np.matmul(T,imu_T_cam),(xyz1))
-    
-
-    # m_sum[:,nnan_index] += world_frame[:,nnan_index]
-
-    # if(i == 0):
-    # world_frame_mean[:,nnan_index] = m_sum[:,nnan_index]/(m_ticker[:,nnan_index] + 1)
-    # m_ticker[:,nnan_index] += 1
+ 
 
     not_seen_yet = np.where(m_ticker[0,:] == 0)
     first_time_seen = np.intersect1d(nnan_index,not_seen_yet)
@@ -104,9 +100,6 @@ def update(T,features,mu_imu,covariance,K,b,imu_T_cam,i):
             covariance[3*j:3*(j+1),3*j:3*(j+1)] = np.eye(3)*0.001
         l+=1
 
-    
-    # print(z_tilda,'z_t')
-
     # if (program == 2):
     ## Calculating Kalman Gain
 
@@ -123,24 +116,15 @@ def update(T,features,mu_imu,covariance,K,b,imu_T_cam,i):
     sigma_Ht_slam = np.matmul(covariance,np.transpose(H_slam))
     I_star_V_slam = np.eye(4*Nt)*V[0,0]
     K_slam = np.matmul(sigma_Ht_slam,np.linalg.inv(np.matmul(H_slam,sigma_Ht_slam)+I_star_V_slam))   # (3m+6 , 4 Nt)
-    # K_slam = np.matmul(sigma_Ht_slam,np.linalg.pinv(np.matmul(H_slam,sigma_Ht_slam)+I_star_V_slam),1e-5)   # (3m+6 , 4 Nt)
-
 
     eye_minus_KH = np.eye(3*m+6) - np.matmul(K_slam,H_slam)
     
     covariance = np.matmul(eye_minus_KH,np.matmul(covariance,np.transpose(eye_minus_KH))) + np.matmul(K_slam,np.matmul(I_star_V_slam,np.transpose(K_slam)))
-    # covariance = np.matmul(eye_minus_KH,covariance)
 
-    # innovation = np.reshape(features[:,nnan_index,i],z_tilda.shape) - z_tilda
     innovation = np.reshape(np.squeeze(features[:,nnan_index,i]),z_tilda.shape,order = 'F') - z_tilda
 
-    # print(innovation)
-    # print(np.reshape(np.squeeze(features[:,nnan_index,i]),z_tilda.shape,order = 'F'),'z')
-    # print(z_tilda,'z_t')
-
-
     mean_3m_1 = mean_3m_1 + np.matmul(K_slam[0:3*m,:],innovation)
-    print(four_four_hatmap(np.matmul(K_slam[-6:,:],innovation)),four_four_hatmap(np.matmul(K_slam[-6:,:],innovation)).shape)
+    
     mu_imu   = np.matmul(mu_imu,expm(four_four_hatmap(np.matmul(K_slam[-6:,:],innovation))))
 
 
