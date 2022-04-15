@@ -1,15 +1,12 @@
 import numpy as np
 from scipy.linalg import expm
-from pr3_utils import hatmap
 
 W = np.diag(np.full(6,(0.2,0.2,0.2,0.001,0.001,0.001)))  ## W = (6,6)
 
-def trajectory(T_old,mu_pred_old,del_old,sigma,av_h,lv_h,lv,f,tau):
+def trajectory(T_old,mu_pred_old,del_old,sigma,av_h,lv_h,lv,tau,program):
 	## We only need top left 6x6 covariance matrix
 
-
 	w = np.reshape(np.random.normal(0,np.diag(W)),(6,1))							## w = (6,)
-
 
 	xi = np.stack((av_h[:,0],av_h[:,1],av_h[:,2],np.array(lv)),axis = 1)
 	xi = np.vstack((xi,np.zeros((1,4))))
@@ -21,7 +18,6 @@ def trajectory(T_old,mu_pred_old,del_old,sigma,av_h,lv_h,lv,f,tau):
 	exp_curly = expm(-tau*curly_hatmap)
 
 	del_new = np.matmul(exp_curly,del_old) + w
-	# del_new = np.matmul(exp_curly,del_old)
 
 	mu_pred_new = np.matmul(mu_pred_old,exp_xi)
 	sigma[-6:,-6:] = np.matmul(exp_curly,np.matmul(sigma[-6:,-6:],np.transpose(exp_curly))) + W
@@ -36,13 +32,12 @@ def trajectory(T_old,mu_pred_old,del_old,sigma,av_h,lv_h,lv,f,tau):
 	
 	xi_del = np.vstack((xi_del,np.zeros((1,4))))
 	exp_xi_del = expm(xi_del)
-
+	
 	T_new = mu_pred_new
-	# T_new = np.matmul(mu_pred_new,exp_xi_del)
-
+	if(program > 3):
+		T_new = np.matmul(T_new,exp_xi_del)
 
 	return T_new, mu_pred_new, sigma, del_new
-	# return T_new, mu_pred_new, del_new
 
 def oneDhatmap(vector):
     '''

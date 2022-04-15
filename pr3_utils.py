@@ -40,7 +40,7 @@ def visualize_trajectory_2d(pose,x=0,y=0,path_name="Trajectory",show_ori=False):
     '''
     function to visualize the trajectory in 2D
     Input:
-        pose:   4*4*N matrix representing the camera pose, 
+        pose:   4*4*N matrix representing the camera pose,
                 where N is the number of poses, and each
                 4*4 matrix is in SE(3)
     '''
@@ -86,7 +86,7 @@ def hatmap(vector):
     Output:
         converts it to a t x 3 x 3 hat map and outputs 3x3xt
     '''
-
+    
     number_of_vectors = vector.shape[0] 
     hatmap = np.zeros((number_of_vectors,3,3))
   
